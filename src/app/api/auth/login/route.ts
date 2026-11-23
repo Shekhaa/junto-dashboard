@@ -35,6 +35,6 @@ export async function POST(request: Request) {
     return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";
-    return NextResponse.json({ error: message }, status=500);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
