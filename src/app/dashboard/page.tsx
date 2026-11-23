@@ -28,7 +28,14 @@ export default function DashboardPage() {
         method: "GET",
         headers: { "Accept": "application/json" },
         cache: "no-store",
+        credentials: "include",
       });
+
+      if (res.status === 401) {
+        // Unauthorized or session expired - redirect to login wall
+        window.location.href = "/login?from=/dashboard";
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(`Ops API returned status ${res.status}`);

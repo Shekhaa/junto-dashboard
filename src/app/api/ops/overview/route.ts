@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getMockOpsOverview } from "@/lib/mockData";
@@ -6,10 +6,9 @@ import { OpsOverviewResponse } from "@/types/ops";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  // 1. Session verification check
-  const cookieStore = cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+export async function GET(request: NextRequest) {
+  // 1. Session verification check (reads from request.cookies or cookies())
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value || cookies().get(SESSION_COOKIE_NAME)?.value;
   const session = await verifySessionToken(token);
 
   if (!session) {

@@ -29,8 +29,7 @@ function LoginForm() {
       const data = await res.json();
 
       if (res.ok) {
-        router.push(from);
-        router.refresh();
+        window.location.href = from;
       } else {
         setError(data.error || "Incorrect operations password. Access denied.");
         setIsLoading(false);

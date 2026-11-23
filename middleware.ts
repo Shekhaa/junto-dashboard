@@ -25,8 +25,17 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 1. Protect all /dashboard routes
-  if (pathname.startsWith("/dashboard")) {
+  // 1. Root route handling
+  if (pathname === "/") {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    } else {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  // 2. Protect /dashboard and all /dashboard/* subpaths
+  if (pathname === "/dashboard" || pathname.startsWith("/dashboard/")) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("from", pathname);
@@ -35,7 +44,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Redirect logged-in users away from /login
+  // 3. Redirect authenticated users away from /login to /dashboard
   if (pathname === "/login" && isAuthenticated) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
@@ -44,5 +53,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: [
+    "/",
+    "/dashboard",
+    "/dashboard/:path*",
+    "/login",
+  ],
 };

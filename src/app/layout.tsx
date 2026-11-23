@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Junto | Realtime Operations & Analytics",
   description: "Production-ready Dark Mode Operations & Telemetry Dashboard for the Junto Verified College Network",
-  icons: {
-    icon: "/favicon.ico",
-  },
 };
 
 export default function RootLayout({
