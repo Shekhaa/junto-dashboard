@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
-import { getMockOpsOverview } from "@/lib/mockData";
 import { OpsOverviewResponse } from "@/types/ops";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  // 1. Session verification check (reads from request.cookies or cookies())
+  // 1. Session verification check
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value || cookies().get(SESSION_COOKIE_NAME)?.value;
   const session = await verifySessionToken(token);
 
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
     const res = await fetch(endpoint, {
       method: "GET",
@@ -43,11 +42,30 @@ export async function GET(request: NextRequest) {
       const data: OpsOverviewResponse = await res.json();
       return NextResponse.json(data);
     } else {
-      console.warn(`[Junto Ops] Backend returned status ${res.status}. Falling back to baseline telemetry.`);
-      return NextResponse.json(getMockOpsOverview());
+      const errorText = await res.text().catch(() => "Unknown error");
+      return NextResponse.json(
+        {
+          error: `Django backend returned status ${res.status}`,
+          endpoint,
+          details: errorText,
+        },
+        { status: res.status }
+      );
     }
-  } catch (err) {
-    console.warn("[Junto Ops] Backend unreachable or timed out. Serving fallback telemetry buffer.", err);
-    return NextResponse.json(getMockOpsOverview());
+  } catch (err: unknown) {
+    const isLocalhost = backendUrl.includes("localhost") || backendUrl.includes("127.0.0.1");
+    const errMsg = err instanceof Error ? err.message : String(err);
+
+    return NextResponse.json(
+      {
+        error: `Could not reach Django Backend at ${backendUrl}`,
+        endpoint,
+        details: errMsg,
+        hint: isLocalhost
+          ? "You are running on Vercel cloud, which cannot connect to 'localhost' on your personal computer. Set BACKEND_API_URL in your Vercel Project Settings to your public backend URL (e.g. Render, Railway, or Ngrok tunnel like https://abc.ngrok-free.app), or run the dashboard locally with 'npm run dev'."
+          : "Ensure your Django server is running and accessible from the public internet.",
+      },
+      { status: 502 }
+    );
   }
 }

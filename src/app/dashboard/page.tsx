@@ -38,7 +38,8 @@ export default function DashboardPage() {
       }
 
       if (!res.ok) {
-        throw new Error(`Ops API returned status ${res.status}`);
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.hint || errJson.error || `Ops API returned status ${res.status}`);
       }
 
       const json: OpsOverviewResponse = await res.json();
@@ -85,9 +86,12 @@ export default function DashboardPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Error notification banner if any */}
         {error && (
-          <div className="p-4 bg-junto-rose/10 border border-junto-rose/20 rounded-2xl flex items-center gap-3 text-xs text-rose-300">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>Connection alert: {error}. Switched to local telemetry resilience mode.</span>
+          <div className="p-4 bg-junto-rose/10 border border-junto-rose/30 rounded-2xl flex items-start gap-3 text-xs text-rose-300">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-rose-200">Live Backend Disconnected</p>
+              <p className="text-gray-300 leading-relaxed">{error}</p>
+            </div>
           </div>
         )}
 

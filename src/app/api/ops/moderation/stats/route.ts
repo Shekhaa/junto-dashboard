@@ -5,13 +5,6 @@ import { ModerationStats } from "@/types/ops";
 
 export const dynamic = "force-dynamic";
 
-const fallbackStats: ModerationStats = {
-  pending_reports: 12,
-  auto_hidden_posts: 3,
-  doxxing_attempts_blocked: 45,
-  banned_users: 2,
-};
-
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value || cookies().get(SESSION_COOKIE_NAME)?.value;
   const session = await verifySessionToken(token);
@@ -26,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const res = await fetch(endpoint, {
       method: "GET",
@@ -44,9 +37,9 @@ export async function GET(request: NextRequest) {
       const data: ModerationStats = await res.json();
       return NextResponse.json(data);
     } else {
-      return NextResponse.json(fallbackStats);
+      return NextResponse.json({ pending_reports: 0, auto_hidden_posts: 0, doxxing_attempts_blocked: 0, banned_users: 0 });
     }
   } catch {
-    return NextResponse.json(fallbackStats);
+    return NextResponse.json({ pending_reports: 0, auto_hidden_posts: 0, doxxing_attempts_blocked: 0, banned_users: 0 });
   }
 }
