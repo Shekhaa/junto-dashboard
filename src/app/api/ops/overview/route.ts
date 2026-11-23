@@ -42,10 +42,12 @@ export async function GET(request: NextRequest) {
       const data: OpsOverviewResponse = await res.json();
       return NextResponse.json(data);
     } else {
-      const errorText = await res.text().catch(() => "Unknown error");
+      const errorText = await res.text().catch(() => "");
       return NextResponse.json(
         {
-          error: `Django backend returned status ${res.status}`,
+          error: res.status === 404
+            ? `Django backend returned 404: The endpoint '${endpoint}' does not exist on your deployed Django server. Please push the new 'config/admin_ops_views.py' and 'config/urls.py' to your backend repository.`
+            : `Django backend returned status ${res.status}`,
           endpoint,
           details: errorText,
         },
