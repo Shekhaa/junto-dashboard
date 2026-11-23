@@ -37,6 +37,28 @@ export interface CommunityRadarData {
   chat_messages_today: number;
 }
 
+export interface ReportedPost {
+  id: number;
+  content: string;
+  is_anonymous: boolean;
+  author_id: number;
+  author_roll: string;
+  author_name: string;
+  author_email?: string;
+  reports_count: number;
+  reasons: string[];
+  is_hidden: boolean;
+  created_at: string;
+}
+
+export interface ModerationStats {
+  pending_reports: number;
+  auto_hidden_posts: number;
+  doxxing_attempts_blocked: number;
+  banned_users: number;
+}
+
+
 export interface OpsOverviewResponse {
   status: "success" | "fallback";
   timestamp: string;
