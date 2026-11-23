@@ -35,18 +35,13 @@ export async function GET(request: NextRequest) {
 
     if (res.ok) {
       const data: ReportedPost[] = await res.json();
-      return NextResponse.json(data);
+      return NextResponse.json(Array.isArray(data) ? data : []);
     } else {
-      return NextResponse.json(
-        { error: `Django moderation reports returned status ${res.status}`, endpoint },
-        { status: res.status }
-      );
+      console.warn(`[Junto Moderation] Django endpoint ${endpoint} returned status ${res.status}`);
+      return NextResponse.json([]);
     }
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json(
-      { error: `Cannot reach Django backend at ${backendUrl}`, details: errMsg },
-      { status: 502 }
-    );
+    console.warn(`[Junto Moderation] Could not reach ${endpoint}:`, err);
+    return NextResponse.json([]);
   }
 }

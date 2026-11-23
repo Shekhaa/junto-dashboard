@@ -10,12 +10,11 @@ import {
   CheckCircle,
   RefreshCw,
   Search,
-  Filter,
   EyeOff,
   User,
   ShieldCheck,
   Ban,
-  Radio,
+  AlertCircle,
 } from "lucide-react";
 import { ReportedPost, ModerationStats } from "@/types/ops";
 
@@ -41,13 +40,37 @@ export function ReportsModerationTab() {
         return;
       }
 
-      const reportsData = await reportsRes.json();
-      const statsData = await statsRes.json();
+      if (reportsRes.ok) {
+        const reportsData = await reportsRes.json();
+        if (Array.isArray(reportsData)) {
+          setReports(reportsData);
+        } else if (reportsData && Array.isArray(reportsData.results)) {
+          setReports(reportsData.results);
+        } else {
+          setReports([]);
+        }
+      } else {
+        const errJson = await reportsRes.json().catch(() => ({}));
+        setFeedbackMessage({
+          text: errJson.error || `Moderation API returned status ${reportsRes.status}`,
+          type: "error",
+        });
+        setReports([]);
+      }
 
-      setReports(reportsData);
-      setStats(statsData);
-    } catch (err) {
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      } else {
+        setStats({ pending_reports: 0, auto_hidden_posts: 0, doxxing_attempts_blocked: 0, banned_users: 0 });
+      }
+    } catch (err: unknown) {
       console.error("Failed to load moderation data:", err);
+      setReports([]);
+      setFeedbackMessage({
+        text: "Could not connect to Moderation API. Check backend status.",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -79,7 +102,7 @@ export function ReportsModerationTab() {
       const data = await res.json();
 
       if (res.ok) {
-        setReports((prev) => prev.filter((r) => r.id !== postId));
+        setReports((prev) => (Array.isArray(prev) ? prev.filter((r) => r.id !== postId) : []));
         setFeedbackMessage({
           text: data.message || `Action '${action}' executed successfully.`,
           type: "success",
@@ -105,20 +128,28 @@ export function ReportsModerationTab() {
   };
 
   const filteredReports = useMemo(() => {
+    if (!Array.isArray(reports)) return [];
+
     return reports.filter((post) => {
+      if (!post) return false;
+      const content = post.content || "";
+      const authorName = post.author_name || "";
+      const authorRoll = post.author_roll || "";
+      const reasons = Array.isArray(post.reasons) ? post.reasons : [];
+
       const matchesSearch =
         searchTerm === "" ||
-        post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.author_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.author_roll.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.reasons.some((r) => r.toLowerCase().includes(searchTerm.toLowerCase()));
+        content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        authorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        authorRoll.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reasons.some((r) => String(r).toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesFilter =
         filterType === "ALL"
           ? true
           : filterType === "AUTO_HIDDEN"
-          ? post.is_hidden
-          : post.reports_count >= 6;
+          ? Boolean(post.is_hidden)
+          : (post.reports_count || 0) >= 6;
 
       return matchesSearch && matchesFilter;
     });
@@ -160,7 +191,7 @@ export function ReportsModerationTab() {
             <AlertTriangle className="w-4 h-4 text-junto-amber" />
           </div>
           <div className="mt-3 text-2xl font-bold font-mono text-white">
-            {stats ? stats.pending_reports : "..."}
+            {stats ? stats.pending_reports : "0"}
           </div>
           <div className="mt-1 text-[11px] text-amber-400/80">Requires staff triage</div>
         </div>
@@ -171,7 +202,7 @@ export function ReportsModerationTab() {
             <Lock className="w-4 h-4 text-junto-indigo" />
           </div>
           <div className="mt-3 text-2xl font-bold font-mono text-white">
-            {stats ? stats.auto_hidden_posts : "..."}
+            {stats ? stats.auto_hidden_posts : "0"}
           </div>
           <div className="mt-1 text-[11px] text-indigo-400/80">Hidden from student feed</div>
         </div>
@@ -182,7 +213,7 @@ export function ReportsModerationTab() {
             <ShieldCheck className="w-4 h-4 text-junto-green" />
           </div>
           <div className="mt-3 text-2xl font-bold font-mono text-white">
-            {stats ? stats.doxxing_attempts_blocked : "..."}
+            {stats ? stats.doxxing_attempts_blocked : "0"}
           </div>
           <div className="mt-1 text-[11px] text-emerald-400/80">Phone/ID blocks this week</div>
         </div>
@@ -193,7 +224,7 @@ export function ReportsModerationTab() {
             <Ban className="w-4 h-4 text-rose-500" />
           </div>
           <div className="mt-3 text-2xl font-bold font-mono text-white">
-            {stats ? stats.banned_users : "..."}
+            {stats ? stats.banned_users : "0"}
           </div>
           <div className="mt-1 text-[11px] text-rose-400/80">Deactivated &amp; revoked</div>
         </div>
@@ -210,7 +241,7 @@ export function ReportsModerationTab() {
                 : "bg-canvas text-gray-400 hover:text-white border border-border-subtle"
             }`}
           >
-            All Reports ({reports.length})
+            All Reports ({Array.isArray(reports) ? reports.length : 0})
           </button>
           <button
             onClick={() => setFilterType("AUTO_HIDDEN")}
@@ -247,10 +278,20 @@ export function ReportsModerationTab() {
         </div>
       </div>
 
-      {/* Feedback Toast */}
+      {/* Feedback Alert */}
       {feedbackMessage && (
-        <div className="p-3 bg-junto-green/10 border border-junto-green/20 rounded-xl text-xs text-junto-green-light flex items-center gap-2">
-          <CheckCircle className="w-4 h-4 text-junto-green shrink-0" />
+        <div
+          className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+            feedbackMessage.type === "success"
+              ? "bg-junto-green/10 border border-junto-green/20 text-junto-green-light"
+              : "bg-junto-rose/10 border border-junto-rose/20 text-rose-300"
+          }`}
+        >
+          {feedbackMessage.type === "success" ? (
+            <CheckCircle className="w-4 h-4 text-junto-green shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
           <span>{feedbackMessage.text}</span>
         </div>
       )}
@@ -332,7 +373,7 @@ export function ReportsModerationTab() {
               <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] text-gray-500 font-medium mr-1">Flag Reasons:</span>
-                  {post.reasons.map((reason, idx) => (
+                  {(post.reasons || []).map((reason, idx) => (
                     <span
                       key={idx}
                       className="px-2 py-0.5 bg-junto-amber/10 text-amber-300 text-xs rounded-lg border border-junto-amber/20 font-mono"
@@ -343,7 +384,7 @@ export function ReportsModerationTab() {
                 </div>
 
                 <div className="text-[11px] text-gray-500 font-mono">
-                  Reported at {new Date(post.created_at).toLocaleTimeString()}
+                  {post.created_at ? `Reported at ${new Date(post.created_at).toLocaleTimeString()}` : ""}
                 </div>
               </div>
 
